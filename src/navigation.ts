@@ -1,10 +1,19 @@
-export type ScreenName = 'home' | 'education' | 'parents' | 'courses' | 'gallery' | 'contacts';
+export type ScreenName =
+  | 'cabinet'
+  | 'routine'
+  | 'attendance'
+  | 'devcard'
+  | 'day'
+  | 'chat'
+  | 'home'
+  | 'contacts';
 
-export const screenTitles: Record<ScreenName, string> = {
-  home: 'Аяла Kids',
-  education: 'Образование',
-  parents: 'Родителям',
-  courses: 'Кружки',
-  gallery: 'Галерея',
-  contacts: 'Контакты',
-};
+// Заголовки экранов берутся из переводов: t(`nav.${screen}`) (см. App.tsx).
+
+// Разделы, которые воспитателю не нужны: он работает с группой, а не с
+// витриной детского сада. Родителю они остаются.
+export const TUTOR_HIDDEN: ScreenName[] = ['home'];
+
+export function isHiddenFor(role: string | undefined, screen: ScreenName) {
+  return role === 'tutor' && TUTOR_HIDDEN.includes(screen);
+}

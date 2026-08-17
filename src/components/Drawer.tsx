@@ -1,51 +1,51 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, View, Text, TouchableOpacity, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppIcon from './AppIcon';
 import Balloon from './Balloon';
 import { colors } from '../theme';
 import { ScreenName } from '../navigation';
+import { useI18n } from '../i18n';
+import { LANGUAGES } from '../i18n/translations';
+import { useAuth } from '../auth';
 
 const DRAWER_WIDTH = 255;
 
-type MenuGroup = { key: string; label: string; items: { label: string; screen: ScreenName }[] };
+// Боковое меню повторяет нижнее — чтобы разделы не расходились.
+// Дополнительно у родителя — оплата; у воспитателя — только рабочие разделы.
+const TUTOR_MENU: { tKey: string; screen: ScreenName }[] = [
+  { tKey: 'nav.day', screen: 'day' },
+  { tKey: 'nav.attendance', screen: 'attendance' },
+  { tKey: 'nav.devcard', screen: 'devcard' },
+  { tKey: 'nav.chat', screen: 'chat' },
+  { tKey: 'nav.cabinet', screen: 'cabinet' },
+];
 
-const GROUPS: MenuGroup[] = [
-  {
-    key: 'edu',
-    label: 'Образование',
-    items: [
-      { label: 'Программы', screen: 'education' },
-      { label: 'Предметы', screen: 'education' },
-      { label: 'Расписание', screen: 'education' },
-      { label: 'Психомоторное развитие', screen: 'education' },
-      { label: 'Эмоциональный интеллект', screen: 'education' },
-    ],
-  },
-  {
-    key: 'par',
-    label: 'Родителям',
-    items: [
-      { label: 'Распорядок дня', screen: 'parents' },
-      { label: 'Питание', screen: 'parents' },
-      { label: 'Кружки и секции', screen: 'courses' },
-      { label: 'Памятка для родителей', screen: 'parents' },
-      { label: 'Цены и условия', screen: 'parents' },
-    ],
-  },
+const PARENT_MENU: { tKey: string; screen: ScreenName }[] = [
+  { tKey: 'nav.home_parent', screen: 'home' },
+  { tKey: 'nav.routine', screen: 'routine' },
+  { tKey: 'nav.chat', screen: 'chat' },
+  { tKey: 'nav.cabinet', screen: 'cabinet' },
 ];
 
 export default function Drawer({
   open,
   onClose,
   onNavigate,
+  onPay,
+  payEnabled,
 }: {
   open: boolean;
   onClose: () => void;
   onNavigate: (screen: ScreenName) => void;
+  onPay?: () => void;
+  payEnabled?: boolean;
 }) {
+  const { t, lang, setLang } = useI18n();
+  const { user, logout } = useAuth();
+  const insets = useSafeAreaInsets();
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const scrimOpacity = useRef(new Animated.Value(0)).current;
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [mounted, setMounted] = useState(open);
 
   useEffect(() => {
@@ -65,13 +65,16 @@ export default function Drawer({
     onClose();
   };
 
+  // Воспитателю витрина детского сада («Главная», «Галерея») не нужна.
+  const isTutor = user?.role === 'tutor';
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, { opacity: scrimOpacity }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
-        <View style={styles.head}>
+        <View style={[styles.head, { paddingTop: insets.top + 16 }]}>
           <View style={styles.headLeft}>
             <Balloon size={30} />
             <Text style={styles.headTitle}>Аяла Kids</Text>
@@ -81,40 +84,58 @@ export default function Drawer({
           </TouchableOpacity>
         </View>
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-          <MenuRow label="Главная" onPress={() => go('home')} />
-          <MenuRow label="О нас" onPress={() => go('contacts')} />
+          {(isTutor ? TUTOR_MENU : PARENT_MENU).map((it) => (
+            <MenuRow key={it.screen} label={t(it.tKey)} onPress={() => go(it.screen)} />
+          ))}
 
-          {GROUPS.map((group) => {
-            const isOpen = !!expanded[group.key];
-            return (
-              <View key={group.key} style={styles.group}>
-                <TouchableOpacity
-                  style={styles.groupHead}
-                  onPress={() => setExpanded((e) => ({ ...e, [group.key]: !e[group.key] }))}
-                >
-                  <Text style={styles.groupLabel}>{group.label}</Text>
-                  <AppIcon name={isOpen ? 'chevron-down' : 'chevron-right'} size={16} color={colors.primary} />
-                </TouchableOpacity>
-                {isOpen && (
-                  <View style={styles.sub}>
-                    {group.items.map((it, idx) => (
-                      <TouchableOpacity
-                        key={idx}
-                        style={[styles.subItem, idx === group.items.length - 1 && { borderBottomWidth: 0 }]}
-                        onPress={() => go(it.screen)}
-                      >
-                        <Text style={styles.subLabel}>{it.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
-            );
-          })}
+          {/* Родителю — оплата и разделы, которые наполняет админ */}
+          {!isTutor && payEnabled !== false && !!onPay && (
+            <MenuRow
+              label={t('nav.payment')}
+              onPress={() => {
+                onClose();
+                onPay();
+              }}
+            />
+          )}
+          <MenuRow label={t('nav.contacts')} onPress={() => go('contacts')} noBorder />
 
-          <MenuRow label="Галерея" onPress={() => go('gallery')} />
-          <MenuRow label="Вопросы" onPress={() => go('contacts')} />
-          <MenuRow label="Контакты" onPress={() => go('contacts')} noBorder />
+          <View style={styles.langBox}>
+            <Text style={styles.langLabel}>{t('common.language')}</Text>
+            <View style={styles.langRow}>
+              {LANGUAGES.map((l) => {
+                const on = lang === l.code;
+                return (
+                  <TouchableOpacity
+                    key={l.code}
+                    style={[styles.langBtn, on && styles.langBtnOn]}
+                    onPress={() => setLang(l.code)}
+                  >
+                    <Text style={[styles.langBtnText, on && styles.langBtnTextOn]}>{l.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {!!user && (
+            <View style={styles.account}>
+              <Text style={styles.accountText}>
+                {t('login.logged_as')} {user.phone_number}
+                {'  '}· {user.role === 'tutor' ? t('login.role_tutor') : t('login.role_parent')}
+              </Text>
+              <TouchableOpacity
+                style={styles.logoutBtn}
+                onPress={() => {
+                  onClose();
+                  logout();
+                }}
+              >
+                <AppIcon name="arrow-left" size={16} color="#c0392b" />
+                <Text style={styles.logoutText}>{t('menu.logout')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       </Animated.View>
     </View>
@@ -180,4 +201,25 @@ const styles = StyleSheet.create({
   sub: { backgroundColor: '#FCF1EC', borderRadius: 12, marginHorizontal: 2, marginBottom: 8 },
   subItem: { paddingVertical: 9, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#f3ddd1' },
   subLabel: { fontSize: 12.5, fontWeight: '600', color: colors.primaryDark, fontFamily: 'Nunito_600SemiBold' },
+
+  langBox: { marginTop: 18, paddingHorizontal: 6, paddingBottom: 24 },
+  langLabel: { fontSize: 11, fontWeight: '700', color: colors.muted, marginBottom: 8, fontFamily: 'Nunito_700Bold' },
+  langRow: { flexDirection: 'row', gap: 8 },
+  langBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  langBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  langBtnText: { fontSize: 13, fontWeight: '800', color: colors.muted, fontFamily: 'Nunito_800ExtraBold' },
+  langBtnTextOn: { color: '#fff' },
+
+  account: { paddingHorizontal: 6, paddingBottom: 24 },
+  accountText: { fontSize: 11, fontWeight: '600', color: colors.muted, marginBottom: 10, fontFamily: 'Nunito_600SemiBold' },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  logoutText: { fontSize: 14, fontWeight: '800', color: '#c0392b', fontFamily: 'Nunito_800ExtraBold' },
 });

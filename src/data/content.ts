@@ -42,7 +42,7 @@ export const defaultContent: Content = {
     { id: 'edu-5', icon: 'heart', title: 'Эмоциональный интеллект', desc: 'чувства и общение', color: 'pink' },
   ],
   parents: [
-    { id: 'par-1', icon: 'clock', title: 'Распорядок дня', desc: 'режим с 8:00 до 18:30' },
+    { id: 'par-1', icon: 'clock', title: 'Распорядок дня', desc: 'режим с 9:00 до 18:30' },
     { id: 'par-2', icon: 'soup', title: 'Питание', desc: '5-разовое, своя кухня' },
     { id: 'par-3', icon: 'ball', title: 'Кружки и секции', desc: 'творчество и спорт' },
     { id: 'par-4', icon: 'notebook', title: 'Памятка для родителей', desc: 'что нужно знать' },

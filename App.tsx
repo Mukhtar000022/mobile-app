@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, SafeAreaView, StatusBar, Platform, Linking } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   useFonts,
   Nunito_400Regular,
@@ -8,22 +9,24 @@ import {
   Nunito_800ExtraBold,
 } from '@expo-google-fonts/nunito';
 
-import AppBar from './src/components/AppBar';
-import BottomNav from './src/components/BottomNav';
-import Drawer from './src/components/Drawer';
-import LeadForm from './src/components/LeadForm';
-import HomeScreen from './src/screens/HomeScreen';
-import ListCardScreen from './src/screens/ListCardScreen';
-import ParentsScreen from './src/screens/ParentsScreen';
-import GalleryScreen from './src/screens/GalleryScreen';
-import ContactsScreen from './src/screens/ContactsScreen';
-import { colors } from './src/theme';
-import { ScreenName, screenTitles } from './src/navigation';
-import { Content, defaultContent } from './src/data/content';
+import { applyTheme } from './src/theme';
 import { fetchContent } from './src/api';
-import { LeadPayload } from './src/api';
+import { LanguageProvider } from './src/i18n';
+import { AuthProvider } from './src/auth';
+import { ChatProvider } from './src/chatContext';
 
+const THEME_KEY = 'ayala_theme';
+
+/**
+ * Загрузчик приложения.
+ *
+ * Цвета задаёт админ в панели. Стили экранов собираются в момент их импорта,
+ * поэтому порядок такой: берём сохранённую тему → применяем → и только затем
+ * подключаем интерфейс (require, а не import сверху файла). Свежую тему
+ * забираем с сервера и сохраняем — она применится при следующем запуске.
+ */
 export default function App() {
+  const [themeReady, setThemeReady] = useState(false);
   const [fontsLoaded] = useFonts({
     Nunito_400Regular,
     Nunito_600SemiBold,
@@ -31,82 +34,44 @@ export default function App() {
     Nunito_800ExtraBold,
   });
 
-  const [screen, setScreen] = useState<ScreenName>('home');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [content, setContent] = useState<Content>(defaultContent);
-  const [leadForm, setLeadForm] = useState<{ visible: boolean; type: LeadPayload['type'] }>({
-    visible: false,
-    type: 'consultation',
-  });
-
   useEffect(() => {
-    fetchContent().then((remote) => {
-      if (remote) setContent(remote);
-    });
+    (async () => {
+      try {
+        const cached = await AsyncStorage.getItem(THEME_KEY);
+        if (cached) applyTheme(JSON.parse(cached));
+      } catch (e) {
+        /* нет сохранённой темы — остаются цвета по умолчанию */
+      }
+      setThemeReady(true);
+
+      // Обновляем тему в фоне: применится при следующем запуске.
+      try {
+        const content: any = await fetchContent();
+        if (content && content.theme) {
+          await AsyncStorage.setItem(THEME_KEY, JSON.stringify(content.theme));
+        }
+      } catch (e) {
+        /* сеть недоступна — не критично */
+      }
+    })();
   }, []);
 
-  const navigate = useCallback((s: ScreenName) => setScreen(s), []);
+  if (!themeReady || !fontsLoaded) return null;
 
-  const openLeadForm = (type: LeadPayload['type']) => setLeadForm({ visible: true, type });
-  const closeLeadForm = () => setLeadForm((f) => ({ ...f, visible: false }));
-
-  const callPrimary = () => {
-    const phone = content.contacts.phones[0]?.replace(/[^\d+]/g, '');
-    if (phone) Linking.openURL(`tel:${phone}`);
-  };
-
-  if (!fontsLoaded) return null;
-
-  let screenEl: React.ReactNode = null;
-  switch (screen) {
-    case 'home':
-      screenEl = <HomeScreen content={content} onNavigate={navigate} onConsult={() => openLeadForm('consultation')} />;
-      break;
-    case 'education':
-      screenEl = (
-        <ListCardScreen title="Образование" items={content.education} onBack={() => navigate('home')} />
-      );
-      break;
-    case 'parents':
-      screenEl = <ParentsScreen items={content.parents} onBack={() => navigate('home')} />;
-      break;
-    case 'courses':
-      screenEl = <ListCardScreen title="Кружки и курсы" items={content.courses} />;
-      break;
-    case 'gallery':
-      screenEl = <GalleryScreen items={content.gallery} />;
-      break;
-    case 'contacts':
-      screenEl = (
-        <ContactsScreen
-          contacts={content.contacts}
-          onCall={callPrimary}
-          onEnroll={() => openLeadForm('enroll')}
-        />
-      );
-      break;
-  }
+  // Интерфейс подключаем только сейчас — тема уже применена.
+  const AppInner = require('./src/AppInner').default;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
-      <View style={styles.container}>
-        <AppBar title={screenTitles[screen]} onMenuPress={() => setDrawerOpen(true)} />
-        <View style={styles.screen}>{screenEl}</View>
-        <BottomNav current={screen} onSelect={navigate} />
-      </View>
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNavigate={navigate} />
-      <LeadForm
-        visible={leadForm.visible}
-        type={leadForm.type}
-        onClose={closeLeadForm}
-      />
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          {/* один WebSocket на всё приложение: чат работает в реальном времени
+              и счётчик непрочитанных виден на любом экране */}
+          <ChatProvider>
+            <AppInner />
+          </ChatProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, backgroundColor: colors.bg },
-  screen: { flex: 1 },
-});

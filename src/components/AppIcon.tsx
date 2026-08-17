@@ -26,6 +26,16 @@ const MCI_MAP: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> = {
   'device-mobile': 'cellphone',
   mail: 'email-outline',
   'map-pin': 'map-marker-outline',
+  'credit-card': 'credit-card-outline',
+  'shield-check': 'shield-check-outline',
+  lock: 'lock-outline',
+  wallet: 'wallet-outline',
+  check: 'check-circle-outline',
+  account: 'account-circle-outline',
+  'account-child': 'account-child-outline',
+  school: 'school-outline',
+  chat: 'chat-outline',
+  send: 'send',
 };
 
 const ION_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme';
 import { submitLead, LeadPayload } from '../api';
+import { useI18n } from '../i18n';
 
 export default function LeadForm({
   visible,
@@ -17,8 +19,10 @@ export default function LeadForm({
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle');
   const [error, setError] = useState('');
+  const { t } = useI18n();
+  const insets = useSafeAreaInsets();
 
-  const title = type === 'consultation' ? 'Получить консультацию' : 'Записаться в сад';
+  const title = type === 'consultation' ? t('lead.title_consult') : t('lead.title_enroll');
 
   const reset = () => {
     setName('');
@@ -35,7 +39,7 @@ export default function LeadForm({
 
   const submit = async () => {
     if (!name.trim() || !phone.trim()) {
-      setError('Укажите имя и телефон');
+      setError(t('lead.err_name_phone'));
       return;
     }
     setStatus('sending');
@@ -45,20 +49,20 @@ export default function LeadForm({
       setStatus('ok');
     } else {
       setStatus('error');
-      setError(res.error || 'Не удалось отправить');
+      setError(res.error || t('lead.send_err'));
     }
   };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: insets.bottom + 24 }]}>
           {status === 'ok' ? (
             <>
-              <Text style={styles.title}>Спасибо! 🎈</Text>
-              <Text style={styles.subtitle}>Мы получили вашу заявку и скоро свяжемся с вами.</Text>
+              <Text style={styles.title}>{t('lead.thanks_title')}</Text>
+              <Text style={styles.subtitle}>{t('lead.thanks_text')}</Text>
               <TouchableOpacity style={styles.cta} onPress={close}>
-                <Text style={styles.ctaText}>Готово</Text>
+                <Text style={styles.ctaText}>{t('common.done')}</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -66,14 +70,14 @@ export default function LeadForm({
               <Text style={styles.title}>{title}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Ваше имя"
+                placeholder={t('lead.name_ph')}
                 placeholderTextColor="#c4a99b"
                 value={name}
                 onChangeText={setName}
               />
               <TextInput
                 style={styles.input}
-                placeholder="Телефон"
+                placeholder={t('lead.phone_ph')}
                 placeholderTextColor="#c4a99b"
                 keyboardType="phone-pad"
                 value={phone}
@@ -81,7 +85,7 @@ export default function LeadForm({
               />
               <TextInput
                 style={[styles.input, { height: 72, textAlignVertical: 'top' }]}
-                placeholder="Комментарий (необязательно)"
+                placeholder={t('lead.comment_ph')}
                 placeholderTextColor="#c4a99b"
                 multiline
                 value={message}
@@ -89,10 +93,10 @@ export default function LeadForm({
               />
               {!!error && <Text style={styles.error}>{error}</Text>}
               <TouchableOpacity style={styles.cta} onPress={submit} disabled={status === 'sending'}>
-                {status === 'sending' ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Отправить</Text>}
+                {status === 'sending' ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>{t('lead.submit')}</Text>}
               </TouchableOpacity>
               <TouchableOpacity style={styles.cancel} onPress={close}>
-                <Text style={styles.cancelText}>Отмена</Text>
+                <Text style={styles.cancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
             </>
           )}

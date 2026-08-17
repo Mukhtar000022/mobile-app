@@ -1,21 +1,32 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Linking, StyleSheet } from 'react-native';
 import AppIcon from '../components/AppIcon';
+import PayButton, { PayButtonVariant } from '../components/PayButton';
 import { colors } from '../theme';
 import { Contacts } from '../data/content';
+import { useI18n } from '../i18n';
 
 export default function ContactsScreen({
   contacts,
   onCall,
   onEnroll,
+  onPay,
+  payEnabled,
+  payDesign,
+  payAmount,
 }: {
   contacts: Contacts;
   onCall: () => void;
   onEnroll: () => void;
+  onPay: () => void;
+  payEnabled: boolean;
+  payDesign: PayButtonVariant;
+  payAmount: string;
 }) {
+  const { t } = useI18n();
   return (
     <ScrollView style={styles.body} contentContainerStyle={{ paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
-      <Text style={styles.sectionTitle}>Контакты</Text>
+      <Text style={styles.sectionTitle}>{t('nav.contacts')}</Text>
 
       <View style={styles.ccard}>
         <View style={styles.av}>
@@ -42,12 +53,22 @@ export default function ContactsScreen({
 
       <View style={styles.cbtns}>
         <TouchableOpacity style={[styles.cbtn, { backgroundColor: colors.primary }]} onPress={onCall}>
-          <Text style={[styles.cbtnText, { color: '#fff' }]}>Позвонить</Text>
+          <Text style={[styles.cbtnText, { color: '#fff' }]}>{t('contacts.call')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.cbtn, { backgroundColor: '#FAEEDA' }]} onPress={onEnroll}>
-          <Text style={[styles.cbtnText, { color: '#854F0B' }]}>Записаться</Text>
+          <Text style={[styles.cbtnText, { color: '#854F0B' }]}>{t('contacts.enroll')}</Text>
         </TouchableOpacity>
       </View>
+
+      {payEnabled && (
+        <PayButton
+          variant={payDesign}
+          label={t('home.pay')}
+          amount={payAmount}
+          onPress={onPay}
+          style={{ marginTop: 12 }}
+        />
+      )}
 
       <View style={styles.socials}>
         <AppIcon name="brand-instagram" size={24} color="#D4537E" />

@@ -1,3 +1,8 @@
+// Палитра приложения. Значения по умолчанию можно переопределить из
+// админ-панели: цвета приходят с бэкенда (раздел «theme») и применяются
+// в App.tsx ДО того, как загрузятся экраны, — поэтому StyleSheet у экранов
+// собирается уже с новыми цветами.
+
 export const colors = {
   bg: '#FFF7F3',
   text: '#3a2a22',
@@ -10,6 +15,35 @@ export const colors = {
   navInactive: '#c2a99d',
   scrim: 'rgba(40,20,12,0.42)',
 };
+
+export type ColorKey = keyof typeof colors;
+
+/** Ключи, которые админ может менять (остальное — служебное). */
+export const EDITABLE_COLORS: ColorKey[] = [
+  'primary',
+  'primaryDark',
+  'bg',
+  'heroBg',
+  'text',
+  'muted',
+  'border',
+  'navInactive',
+];
+
+const DEFAULTS = { ...colors };
+
+/** Применяет цвета из админки. Вызывается один раз при старте приложения. */
+export function applyTheme(overrides?: Partial<Record<ColorKey, string>> | null) {
+  Object.assign(colors, DEFAULTS);
+  if (!overrides) return;
+  for (const key of EDITABLE_COLORS) {
+    const value = overrides[key];
+    // принимаем только корректный HEX — иначе останется значение по умолчанию
+    if (typeof value === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim())) {
+      colors[key] = value.trim();
+    }
+  }
+}
 
 export type PaletteKey = 'green' | 'orange' | 'yellow' | 'purple' | 'pink' | 'blue' | 'mint' | 'rose';
 
